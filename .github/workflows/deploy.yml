@@ -91,7 +91,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     environment: production
 
     steps:
@@ -128,16 +128,24 @@ jobs:
           exit 1
         fi
         
-        # 调试信息：显示所有标签
-        echo "🔍 所有镜像标签:"
-        echo "$ALL_TAGS"
+        # 调试信息：显示构建输出
+        echo "🔍 调试信息:"
+        echo "- 构建输出标签原始值: '$ALL_TAGS'"
+        echo "- 标签字符数: $(echo -n "$ALL_TAGS" | wc -c)"
+        echo "- 标签行数: $(echo "$ALL_TAGS" | wc -l)"
         
-        # 从多个标签中选择第一个作为部署标签
-        IMAGE_TAG=$(echo "$ALL_TAGS" | head -n1 | tr -d '\n\r')
+        # 如果标签为空，尝试手动构建标签
+        if [ -z "$ALL_TAGS" ] || [ "$(echo -n "$ALL_TAGS" | wc -c)" -eq 0 ]; then
+          echo "⚠️ 构建输出标签为空，使用手动构建的标签"
+          IMAGE_TAG="registry.cn-hangzhou.aliyuncs.com/wufly632/poker-score:main"
+        else
+          # 从多个标签中选择第一个作为部署标签
+          IMAGE_TAG=$(echo "$ALL_TAGS" | head -n1 | tr -d '\n\r ')
+        fi
         
-        # 检查镜像标签是否为空
+        # 最终检查镜像标签是否为空
         if [ -z "$IMAGE_TAG" ]; then
-          echo "❌ 镜像标签为空，请检查构建步骤"
+          echo "❌ 镜像标签仍为空，无法继续部署"
           exit 1
         fi
         
