@@ -27,28 +27,6 @@ services:
     networks:
       - poker-network
 
-  caddy:
-    image: caddy:2-alpine
-    container_name: poker-score-proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./data/caddy-data:/data
-      - ./data/caddy-config:/config
-    networks:
-      - poker-network
-    depends_on:
-      poker-score:
-        condition: service_healthy
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
 networks:
   poker-network:
     driver: bridge
