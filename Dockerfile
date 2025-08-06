@@ -43,6 +43,10 @@ RUN chown -R nextjs:nodejs /app
 # Install tsx globally
 RUN npm install -g tsx
 
+# Copy startup script (as root)
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Switch to non-root user
 USER nextjs
 
@@ -53,10 +57,6 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-
-# Copy startup script
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
 
 # Start with the initialization script
 CMD ["/app/start.sh"]
