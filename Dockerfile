@@ -26,7 +26,10 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Remove dev dependencies after build
+# Install Prisma CLI globally (needed for database operations)
+RUN npm install -g prisma
+
+# Remove dev dependencies after build (but keep Prisma)
 RUN npm prune --omit=dev
 
 # Create app user
@@ -51,5 +54,25 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the server
-CMD ["tsx", "server.ts"]
+# Create startup script that handles database initialization
+RUN echo '#!/bin/sh\n\
+echo "🚀 Starting Poker Score App..."\n\
+echo "📂 Current directory: $(pwd)"\n\
+echo "📁 Contents: $(ls -la)"\n\
+\n\
+# Ensure database directory exists\n\
+mkdir -p /app/db\n\
+\n\
+# Run database migrations\n\
+echo "🔧 Running database migrations..."\n\
+npx prisma db push --accept-data-loss || {\n\
+  echo "❌ Database migration failed, trying to create database..."\n\
+  npx prisma migrate deploy || echo "⚠️ Migration failed, will try to continue..."\n\
+}\n\
+\n\
+# Start the application\n\
+echo "🎯 Starting application..."\n\
+exec tsx server.ts' > /app/start.sh && chmod +x /app/start.sh
+
+# Start with the initialization script
+CMD ["/app/start.sh"]
