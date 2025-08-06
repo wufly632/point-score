@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   poker-score:
-    image: ghcr.io/your-username/poker-score:latest
+    image: registry.cn-hangzhou.aliyuncs.com/wufly632/poker-score:latest
     container_name: poker-score-app
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3268:3000"
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:./db/custom.db
