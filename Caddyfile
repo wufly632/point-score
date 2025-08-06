@@ -1,0 +1,99 @@
+# 生产环境 Caddyfile
+{
+    # 全局选项
+    admin off
+    persist_config off
+}
+
+# 主域名配置 - 替换为您的实际域名
+your-domain.com {
+    # 反向代理到 Docker 容器
+    reverse_proxy poker-score-app:3000 {
+        # WebSocket 支持 (Socket.IO)
+        header_up Upgrade {>Upgrade}
+        header_up Connection {>Connection}
+        header_up Host {http.request.host}
+        header_up X-Real-IP {http.request.remote.host}
+        header_up X-Forwarded-For {http.request.remote}
+        header_up X-Forwarded-Proto {http.request.scheme}
+        
+        # 健康检查
+        health_uri /
+        health_interval 30s
+        health_timeout 10s
+    }
+    
+    # 静态资源缓存优化
+    @static {
+        path /_next/static/* /favicon.ico /robots.txt /sitemap.xml
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+    
+    @public {
+        path /public/*
+    }
+    header @public Cache-Control "public, max-age=86400"
+    
+    # 安全头设置
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # 防止点击劫持
+        X-Frame-Options "SAMEORIGIN"
+        # 内容类型嗅探保护
+        X-Content-Type-Options "nosniff"
+        # XSS 保护
+        X-XSS-Protection "1; mode=block"
+        # 推荐人策略
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # 权限策略
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        # 移除服务器信息
+        -Server
+    }
+    
+    # 压缩响应
+    encode {
+        gzip 6
+        minimum_length 1024
+        match {
+            header Content-Type text/*
+            header Content-Type application/json*
+            header Content-Type application/javascript*
+            header Content-Type application/xml*
+            header Content-Type image/svg+xml*
+        }
+    }
+    
+    # 访问日志
+    log {
+        output file /var/log/caddy/poker-score.log {
+            roll_size 100MB
+            roll_keep 5
+            roll_keep_for 720h
+        }
+        format transform `{ts} {status} {method} {uri} {remote_host} "{user_agent}" {duration}` {
+            time_format "2006-01-02T15:04:05.000Z07:00"
+        }
+        level INFO
+    }
+    
+    # 错误页面
+    handle_errors {
+        @5xx expression `{http.error.status_code} >= 500 && {http.error.status_code} < 600`
+        respond @5xx "服务暂时不可用，请稍后重试" 503
+        
+        @4xx expression `{http.error.status_code} >= 400 && {http.error.status_code} < 500`
+        respond @4xx "页面未找到" 404
+    }
+}
+
+# HTTP 强制重定向到 HTTPS
+http://your-domain.com {
+    redir https://{host}{uri} permanent
+}
+
+# 可选：www 重定向
+www.your-domain.com {
+    redir https://your-domain.com{uri} permanent
+}

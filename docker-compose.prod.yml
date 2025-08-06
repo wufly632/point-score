@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  poker-score:
+    image: ghcr.io/your-username/poker-score:latest
+    container_name: poker-score-app
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:./db/custom.db
+    volumes:
+      # 持久化数据库文件
+      - ./data/db:/app/db
+      # 持久化日志
+      - ./data/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - poker-network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: poker-score-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy-data:/data
+      - ./data/caddy-config:/config
+    networks:
+      - poker-network
+    depends_on:
+      poker-score:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  poker-network:
+    driver: bridge
