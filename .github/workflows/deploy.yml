@@ -235,16 +235,15 @@ jobs:
           "chmod +x /tmp/deploy_script.sh && /tmp/deploy_script.sh '$DEPLOY_PATH' '$IMAGE_TAG' '$ALIYUN_REGISTRY_PASSWORD' '$ALIYUN_REGISTRY_USERNAME' && rm /tmp/deploy_script.sh"
 
     - name: Health check
-      env:
-        DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       run: |
         echo "🔍 Performing health check..."
         for i in {1..30}; do
-          # 尝试通过端口 3268 访问健康检查端点
-          if curl -f "http://${{ secrets.DEPLOY_HOST }}:3268/api/health" > /dev/null 2>&1; then
+          # 通过 HTTPS 域名访问健康检查端点
+          if curl -f "https://point.wufly.top/api/health" > /dev/null 2>&1; then
             echo "✅ Health check passed!"
             # 显示健康检查详细信息
-            curl -s "http://${{ secrets.DEPLOY_HOST }}:3268/api/health" | jq '.' || echo "健康检查响应获取成功"
+            echo "📊 健康检查响应："
+            curl -s "https://point.wufly.top/api/health" | jq '.' || echo "健康检查响应获取成功"
             exit 0
           fi
           echo "⏳ Waiting for service to be ready... (attempt $i/30)"
@@ -252,7 +251,7 @@ jobs:
         done
         echo "❌ Health check failed after 5 minutes"
         echo "🔍 最后一次尝试获取健康检查响应："
-        curl -v "http://${{ secrets.DEPLOY_HOST }}:3268/api/health" || echo "无法连接到健康检查端点"
+        curl -v "https://point.wufly.top/api/health" || echo "无法连接到健康检查端点"
         exit 1
 
   notify:

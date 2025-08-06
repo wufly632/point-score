@@ -5,8 +5,8 @@
     persist_config off
 }
 
-# 主域名配置 - 替换为您的实际域名
-your-domain.com {
+# 主域名配置
+point.wufly.top {
     # 反向代理到 Docker 容器
     reverse_proxy poker-score-app:3000 {
         # WebSocket 支持 (Socket.IO)
@@ -89,11 +89,11 @@ your-domain.com {
 }
 
 # HTTP 强制重定向到 HTTPS
-http://your-domain.com {
+http://point.wufly.top {
     redir https://{host}{uri} permanent
 }
 
 # 可选：www 重定向
-www.your-domain.com {
-    redir https://your-domain.com{uri} permanent
+www.point.wufly.top {
+    redir https://point.wufly.top{uri} permanent
 }
