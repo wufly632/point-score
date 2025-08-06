@@ -1,77 +1,51 @@
-# Multi-stage build for Next.js + Socket.IO app
-FROM node:20-alpine AS base
+# Simple Dockerfile for Next.js + Socket.IO app
+FROM node:20-alpine
 
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+# Install system dependencies
 RUN apk add --no-cache libc6-compat
+
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Copy package files
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Install all dependencies (dev dependencies needed for build)
+RUN npm ci
+
+# Copy source code
 COPY . .
 
 # Generate Prisma client
 RUN npx prisma generate
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
+# Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
-
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
+# Remove dev dependencies after build
+RUN npm prune --omit=dev
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
+# Create app user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy the public folder
-COPY --from=builder /app/public ./public
+# Create necessary directories
+RUN mkdir -p db logs
+RUN chown -R nextjs:nodejs /app
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Copy built application
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy custom server and source code
-COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./
-COPY --from=builder --chown=nextjs:nodejs /app/src ./src/
-
-# Copy package.json for runtime dependencies
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-
-# Copy Prisma files and database
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma/
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma/
-
-# Create database directory
-RUN mkdir -p db && chown nextjs:nodejs db
-
-# Install tsx for TypeScript execution
+# Install tsx globally
 RUN npm install -g tsx
 
+# Switch to non-root user
 USER nextjs
 
+# Expose port
 EXPOSE 3000
 
+# Environment variables
+ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Run the custom server with Socket.IO support
+# Start the server
 CMD ["tsx", "server.ts"]
