@@ -115,7 +115,7 @@ jobs:
         DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-        IMAGE_TAG: ${{ needs.build.outputs.tag }}
+        ALL_TAGS: ${{ needs.build.outputs.tag }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_ACTOR: ${{ github.actor }}
       run: |
@@ -129,6 +129,9 @@ jobs:
           echo "- DEPLOY_PATH (部署路径)"
           exit 1
         fi
+        
+        # 从多个标签中选择第一个作为部署标签
+        IMAGE_TAG=$(echo "$ALL_TAGS" | head -n1)
         
         echo "🚀 开始部署到服务器: $DEPLOY_USER@$DEPLOY_HOST"
         echo "📦 镜像标签: $IMAGE_TAG"
