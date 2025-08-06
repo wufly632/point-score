@@ -116,6 +116,7 @@ jobs:
         ALL_TAGS: ${{ needs.build.outputs.tag }}
         ALIYUN_REGISTRY_USERNAME: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
         ALIYUN_REGISTRY_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+        GITHUB_SHA: ${{ github.sha }}
       run: |
         # 检查必需的环境变量
         if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_PATH" ]; then
@@ -134,10 +135,17 @@ jobs:
         echo "- 标签字符数: $(echo -n "$ALL_TAGS" | wc -c)"
         echo "- 标签行数: $(echo "$ALL_TAGS" | wc -l)"
         
-        # 如果标签为空，尝试手动构建标签
+        # 如果标签为空，使用带时间戳的标签确保获取最新镜像
         if [ -z "$ALL_TAGS" ] || [ "$(echo -n "$ALL_TAGS" | wc -c)" -eq 0 ]; then
           echo "⚠️ 构建输出标签为空，使用手动构建的标签"
-          IMAGE_TAG="registry.cn-hangzhou.aliyuncs.com/wufly632/poker-score:main"
+          # 使用 GitHub SHA 作为标签确保唯一性
+          IMAGE_TAG="registry.cn-hangzhou.aliyuncs.com/wufly632/poker-score:main-$(echo $GITHUB_SHA | cut -c1-7)"
+          echo "🔧 使用 SHA 标签: $IMAGE_TAG"
+          # 如果 SHA 标签不存在，回退到 main 标签
+          if ! docker pull "$IMAGE_TAG" 2>/dev/null; then
+            echo "⚠️ SHA 标签不存在，使用 main 标签"
+            IMAGE_TAG="registry.cn-hangzhou.aliyuncs.com/wufly632/poker-score:main"
+          fi
         else
           # 从多个标签中选择第一个作为部署标签
           IMAGE_TAG=$(echo "$ALL_TAGS" | head -n1 | tr -d '\n\r ')
@@ -181,14 +189,13 @@ jobs:
         echo "🔐 登录阿里云容器镜像仓库..."
         echo "$ALIYUN_REGISTRY_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com -u "$ALIYUN_REGISTRY_USERNAME" --password-stdin
         
-        # 检查本地是否已有镜像，避免重复下载
-        if docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
-          echo "📦 本地已有镜像: $IMAGE_TAG"
-        else
-          # 拉取新镜像
-          echo "📦 拉取新镜像: $IMAGE_TAG"
-          docker pull "$IMAGE_TAG"
-        fi
+        # 清理本地镜像缓存，强制拉取最新镜像
+        echo "🗑️ 清理本地镜像缓存..."
+        docker rmi "$IMAGE_TAG" 2>/dev/null || echo "本地镜像不存在，跳过删除"
+        
+        # 强制拉取最新镜像
+        echo "📦 强制拉取最新镜像: $IMAGE_TAG"
+        docker pull "$IMAGE_TAG"
         
         # 更新镜像标签
         echo "🔄 更新镜像标签..."
