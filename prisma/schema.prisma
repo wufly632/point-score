@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 用户创建的房间
+  createdRooms Room[]
+  // 用户加入的房间
+  roomUsers    RoomUser[]
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique // 房间码，用于扫码加入
+  isActive    Boolean  @default(true)
+  creatorId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  creator     User         @relation(fields: [creatorId], references: [id])
+  roomUsers   RoomUser[]
+  transactions ScoreTransaction[]
+}
+
+model RoomUser {
+  id        String   @id @default(cuid())
+  userId    String
+  roomId    String
+  score     Int      @default(0) // 用户在该房间的积分
+  joinedAt  DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+  room      Room     @relation(fields: [roomId], references: [id])
+  
+  // 作为借出方的交易记录
+  fromTransactions ScoreTransaction[] @relation("FromTransactions")
+  // 作为借入方的交易记录
+  toTransactions   ScoreTransaction[] @relation("ToTransactions")
+  
+  @@unique([userId, roomId])
+}
+
+model ScoreTransaction {
+  id          String   @id @default(cuid())
+  roomId      String
+  fromUserId  String   // 借出积分的用户ID
+  toUserId    String   // 借入积分的用户ID
+  amount      Int      // 借积分数量
+  description String?  // 交易描述
+  createdAt   DateTime @default(now())
+  
+  room        Room      @relation(fields: [roomId], references: [id])
+  fromUser    RoomUser  @relation("FromTransactions", fields: [fromUserId], references: [id])
+  toUser      RoomUser  @relation("ToTransactions", fields: [toUserId], references: [id])
+}
