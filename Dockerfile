@@ -12,8 +12,12 @@ COPY package.json package-lock.json ./
 # Install all dependencies (dev dependencies needed for build)
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy only necessary files first for better layer caching
+COPY prisma ./prisma
+COPY src ./src
+COPY public ./public
+COPY next.config.ts tsconfig.json tailwind.config.ts postcss.config.mjs ./
+COPY server.ts ./
 
 # Generate Prisma client
 RUN npx prisma generate

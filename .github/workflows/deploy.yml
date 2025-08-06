@@ -165,9 +165,14 @@ jobs:
         echo "🔐 登录容器注册表..."
         echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         
-        # 拉取新镜像
-        echo "📦 拉取新镜像: $IMAGE_TAG"
-        docker pull "$IMAGE_TAG"
+        # 检查本地是否已有镜像，避免重复下载
+        if docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+          echo "📦 本地已有镜像: $IMAGE_TAG"
+        else
+          # 拉取新镜像（并行下载层以提升速度）
+          echo "📦 拉取新镜像: $IMAGE_TAG"
+          docker pull "$IMAGE_TAG" --parallel
+        fi
         
         # 更新镜像标签
         echo "🔄 更新镜像标签..."
@@ -178,9 +183,20 @@ jobs:
         docker compose -f docker-compose.prod.yml down
         docker compose -f docker-compose.prod.yml up -d
         
-        # 等待服务启动
+        # 等待服务启动（减少等待时间，通过健康检查验证）
         echo "⏳ 等待服务启动..."
-        sleep 30
+        sleep 15
+        
+        # 简单健康检查
+        echo "🔍 检查服务状态..."
+        for i in {1..10}; do
+          if docker compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+            echo "✅ 服务启动成功"
+            break
+          fi
+          echo "⏳ 等待服务启动... (尝试 $i/10)"
+          sleep 3
+        done
         
         # 清理旧镜像
         echo "🧹 清理旧镜像..."
