@@ -1,7 +1,7 @@
 # Dependencies
 node_modules
 npm-debug.log*
-package-lock.json
+# package-lock.json - 需要用于 Docker 构建
 yarn.lock
 pnpm-lock.yaml
 

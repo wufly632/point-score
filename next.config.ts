@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // 启用 standalone 输出用于 Docker 部署
+  output: 'standalone',
   // 禁用 Next.js 热重载，由 nodemon 处理重编译
   reactStrictMode: false,
   webpack: (config, { dev }) => {
