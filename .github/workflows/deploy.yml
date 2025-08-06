@@ -181,9 +181,15 @@ jobs:
         fi
         cd "$DEPLOY_PATH"
         
-        # 更新部署文件
+        # 更新部署文件（处理本地更改）
         echo "📥 更新部署文件..."
-        git pull origin main
+        git status || true
+        git stash push -m "Auto-stash before deploy $(date)" || echo "没有需要暂存的更改"
+        git pull origin main || {
+          echo "⚠️ Pull 失败，尝试重置本地更改"
+          git reset --hard HEAD
+          git pull origin main
+        }
         
         # 登录到阿里云容器镜像仓库
         echo "🔐 登录阿里云容器镜像仓库..."
